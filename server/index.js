@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const AppointmentDatabase = require("./database");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,36 +8,12 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const DEPARTMENTS = {
-  内科: { name: "内科", maxSlots: 10 },
-  外科: { name: "外科", maxSlots: 10 },
-};
+// 初始化数据库
+const db = new AppointmentDatabase();
 
-const store = {
-  appointments: {},
-  phoneToAppointment: {},
-};
-
-function formatDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getBookingWindow() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(today.getDate() + 2);
-
-  return [formatDate(tomorrow), formatDate(dayAfterTomorrow)];
-}
-
+// 验证工具函数
 function isValidBookingDate(date) {
-  const [tomorrow, dayAfterTomorrow] = getBookingWindow();
+  const [tomorrow, dayAfterTomorrow] = db.getBookingWindow();
   return date >= tomorrow && date <= dayAfterTomorrow;
 }
 
@@ -44,50 +21,10 @@ function isValidPhone(phone) {
   return /^1[3-9]\d{9}$/.test(phone);
 }
 
-function ensureSchedule() {
-  const validDates = new Set(getBookingWindow());
-
-  Object.keys(DEPARTMENTS).forEach((departmentKey) => {
-    if (!store.appointments[departmentKey]) {
-      store.appointments[departmentKey] = {};
-    }
-    const schedule = store.appointments[departmentKey];
-
-    Object.keys(schedule).forEach((date) => {
-      if (!validDates.has(date)) {
-        const phones = schedule[date];
-        if (Array.isArray(phones)) {
-          phones.forEach((phone) => {
-            if (store.phoneToAppointment[phone]) {
-              delete store.phoneToAppointment[phone];
-            }
-          });
-        }
-        delete schedule[date];
-      }
-    });
-
-    validDates.forEach((date) => {
-      if (!(date in schedule)) {
-        schedule[date] = [];
-      } else if (!Array.isArray(schedule[date])) {
-        schedule[date] = schedule[date] ? [schedule[date]] : [];
-      }
-    });
-  });
-
-  Object.keys(store.phoneToAppointment).forEach((phone) => {
-    const booking = store.phoneToAppointment[phone];
-    if (!booking || !validDates.has(booking.date)) {
-      delete store.phoneToAppointment[phone];
-    }
-  });
-}
-
 app.post("/api/appointment/book", (req, res) => {
   const { date, department, phone } = req.body || {};
-  ensureSchedule();
 
+  // 参数验证
   if (!date || !department || !phone) {
     return res.status(400).json({ success: false, message: "缺少必要参数" });
   }
@@ -98,44 +35,41 @@ app.post("/api/appointment/book", (req, res) => {
       .json({ success: false, message: "不在预订日期内" });
   }
 
-  if (!DEPARTMENTS[department]) {
-    return res.status(400).json({ success: false, message: "无效科室" });
-  }
-
   if (!isValidPhone(phone)) {
     return res.status(400).json({ success: false, message: "无效手机号" });
   }
 
-  if (store.phoneToAppointment[phone]) {
-    return res.status(400).json({ success: false, message: "该手机号已预约" });
+  // 验证科室是否存在
+  const departmentInfo = db.getDepartment(department);
+  if (!departmentInfo) {
+    return res.status(400).json({ success: false, message: "无效科室" });
   }
 
-  const schedule = store.appointments[department];
-
-  if (!(date in schedule)) {
-    schedule[date] = [];
-  }
-
-  const maxSlots = DEPARTMENTS[department].maxSlots;
-  const slots = schedule[date];
-
-  if (slots.length >= maxSlots) {
+  // 检查号源是否已满
+  const bookedCount = db.getBookedCount(department, date);
+  if (bookedCount >= departmentInfo.max_slots) {
     return res.status(400).json({ success: false, message: "暂无预约号" });
   }
 
-  slots.push(phone);
-  store.phoneToAppointment[phone] = { department, date };
+  try {
+    // 尝试预约
+    const result = db.bookAppointment(phone, department, date);
 
-  return res.json({
-    success: true,
-    message: "预约成功",
-    data: { department, date, phone },
-  });
+    return res.json({
+      success: true,
+      message: "预约成功",
+      data: { department, date, phone, id: result.id },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "预约失败"
+    });
+  }
 });
 
 app.post("/api/appointment/cancel", (req, res) => {
   const { phone } = req.body || {};
-  ensureSchedule();
 
   if (!phone) {
     return res.status(400).json({ success: false, message: "缺少手机号" });
@@ -145,42 +79,63 @@ app.post("/api/appointment/cancel", (req, res) => {
     return res.status(400).json({ success: false, message: "无效手机号" });
   }
 
-  const booking = store.phoneToAppointment[phone];
-  if (!booking) {
+  // 检查预约是否存在
+  const appointment = db.getAppointmentByPhone(phone);
+  if (!appointment) {
     return res.status(404).json({ success: false, message: "该手机号无预约" });
   }
 
-  const { department, date } = booking;
-  const slots = store.appointments[department][date] || [];
-  store.appointments[department][date] = slots.filter((p) => p !== phone);
-  delete store.phoneToAppointment[phone];
-
-  return res.json({ success: true, message: "取消预约成功" });
+  // 取消预约
+  const success = db.cancelAppointment(phone);
+  if (success) {
+    return res.json({
+      success: true,
+      message: "取消预约成功",
+      data: {
+        department: appointment.department_name,
+        date: appointment.appointment_date,
+        phone: phone
+      }
+    });
+  } else {
+    return res.status(500).json({ success: false, message: "取消预约失败" });
+  }
 });
 
 app.get("/api/appointment/availability", (req, res) => {
-  ensureSchedule();
+  try {
+    // 清理过期预约数据
+    db.cleanExpiredAppointments();
 
-  const availability = {};
-  Object.keys(DEPARTMENTS).forEach((departmentKey) => {
-    const schedule = store.appointments[departmentKey];
-    const maxSlots = DEPARTMENTS[departmentKey].maxSlots;
-    availability[departmentKey] = Object.keys(schedule).map((date) => ({
-      date,
-      ...(() => {
-        const slots = Array.isArray(schedule[date]) ? schedule[date] : [];
-        return {
-          available: Math.max(maxSlots - slots.length, 0),
-          booked: slots.length,
-        };
-      })(),
-    }));
-  });
+    // 获取可用性数据
+    const availability = db.getAvailability();
 
-  res.json({ success: true, data: availability });
+    res.json({ success: true, data: availability });
+  } catch (error) {
+    console.error('获取号源信息失败:', error);
+    res.status(500).json({
+      success: false,
+      message: "获取号源信息失败"
+    });
+  }
+});
+
+// 优雅关闭处理
+process.on('SIGINT', () => {
+  console.log('正在关闭数据库连接...');
+  db.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('正在关闭数据库连接...');
+  db.close();
+  process.exit(0);
 });
 
 app.listen(PORT, () => {
-  ensureSchedule();
+  // 初始化时清理过期数据
+  db.cleanExpiredAppointments();
   console.log(`Appointment service listening on http://localhost:${PORT}`);
+  console.log('数据库已初始化，支持数据持久化存储');
 });

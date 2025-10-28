@@ -5,11 +5,16 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "init-db": "node init-db.js",
+    "db-stats": "node db-utils.js stats",
+    "db-clean": "node db-utils.js clean-expired",
+    "db-departments": "node db-utils.js list-departments"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "better-sqlite3": "^12.4.1",
     "cors": "^2.8.5",
     "express": "^4.19.2"
   }

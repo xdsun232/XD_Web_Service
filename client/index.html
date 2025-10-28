@@ -1,119 +1,232 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>就诊预约系统</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-      crossorigin="anonymous"
-    />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <div class="container py-4">
-      <h1 class="mb-4 text-center">就诊预约系统</h1>
-      <div id="message-container"></div>
-
-      <div class="row g-4">
-        <div class="col-lg-6">
-          <div class="card h-100">
-            <div class="card-header bg-primary text-white">预约专家号</div>
-            <div class="card-body">
-              <form id="booking-form" novalidate>
-                <div class="mb-3">
-                  <label for="booking-date" class="form-label">预约日期</label>
-                  <input
-                    type="date"
-                    class="form-control"
-                    id="booking-date"
-                    required
-                  />
-                </div>
-                <div class="mb-3">
-                  <label for="booking-department" class="form-label"
-                    >预约科室</label
-                  >
-                  <select class="form-select" id="booking-department" required>
-                    <option value="内科">内科</option>
-                    <option value="外科">外科</option>
-                  </select>
-                </div>
-                <div class="mb-3">
-                  <label for="booking-phone" class="form-label">手机号</label>
-                  <input
-                    type="tel"
-                    class="form-control"
-                    id="booking-phone"
-                    placeholder="请输入11位手机号"
-                    required
-                  />
-                </div>
-                <button type="submit" class="btn btn-primary w-100">
-                  提交预约
-                </button>
-              </form>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧医疗预约系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bg-light">
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-hospital me-2"></i>智慧医疗预约系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#booking">
+                            <i class="bi bi-calendar-plus me-1"></i>在线预约
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#availability">
+                            <i class="bi bi-clipboard-data me-1"></i>号源查询
+                        </a>
+                    </li>
+                </ul>
             </div>
-          </div>
         </div>
+    </nav>
 
-        <div class="col-lg-6">
-          <div class="card h-100">
-            <div class="card-header bg-secondary text-white">取消预约</div>
-            <div class="card-body">
-              <form id="cancel-form" novalidate>
-                <div class="mb-3">
-                  <label for="cancel-phone" class="form-label">手机号</label>
-                  <input
-                    type="tel"
-                    class="form-control"
-                    id="cancel-phone"
-                    placeholder="请输入已预约手机号"
-                    required
-                  />
+    <!-- 主要内容区域 -->
+    <main class="container-fluid py-4">
+        <!-- 欢迎横幅 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="hero-section text-white rounded-3 p-5 text-center"
+                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h1 class="display-4 fw-bold mb-3" data-aos="fade-down">
+                        <i class="bi bi-heart-pulse-fill me-3"></i>智慧医疗预约系统
+                    </h1>
+                    <p class="lead mb-0" data-aos="fade-up" data-aos-delay="100">
+                        便捷高效的在线预约服务，让医疗更贴近您的生活
+                    </p>
                 </div>
-                <button type="submit" class="btn btn-outline-secondary w-100">
-                  取消预约
-                </button>
-              </form>
             </div>
-          </div>
         </div>
-      </div>
 
-      <div class="card mt-4">
-        <div class="card-header bg-info text-white">可用号源</div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-striped mb-0">
-              <thead>
-                <tr>
-                  <th scope="col">科室</th>
-                  <th scope="col">日期</th>
-                  <th scope="col">可用号源</th>
-                  <th scope="col">已预约</th>
-                </tr>
-              </thead>
-              <tbody id="availability-body">
-                <tr>
-                  <td colspan="4" class="text-center text-muted">
-                    正在加载号源信息...
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <!-- 消息提示区域 -->
+        <div id="message-container" class="mb-4"></div>
+
+        <!-- 功能卡片区域 -->
+        <div class="row g-4 mb-4">
+            <!-- 预约卡片 -->
+            <div class="col-lg-6" id="booking">
+                <div class="card h-100 shadow-sm border-0 booking-card" data-aos="fade-right">
+                    <div class="card-header bg-gradient text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar-plus me-2"></i>在线预约
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="booking-form" novalidate>
+                            <div class="mb-3">
+                                <label for="booking-date" class="form-label fw-semibold">
+                                    <i class="bi bi-calendar-event me-1 text-primary"></i>预约日期
+                                </label>
+                                <input type="date" class="form-control form-control-lg" id="booking-date" required>
+                                <div class="form-text">仅可预约明天和后天的号源</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="booking-department" class="form-label fw-semibold">
+                                    <i class="bi bi-hospital me-1 text-primary"></i>选择科室
+                                </label>
+                                <select class="form-select form-select-lg" id="booking-department" required>
+                                    <option value="">请选择科室</option>
+                                    <option value="内科">
+                                        <i class="bi bi-stethoscope"></i> 内科
+                                    </option>
+                                    <option value="外科">
+                                        <i class="bi bi-activity"></i> 外科
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="booking-phone" class="form-label fw-semibold">
+                                    <i class="bi bi-telephone me-1 text-primary"></i>手机号码
+                                </label>
+                                <input type="tel" class="form-control form-control-lg" id="booking-phone"
+                                       placeholder="请输入11位手机号" required>
+                                <div class="form-text">用于接收预约确认信息</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-check-circle me-2"></i>提交预约
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 取消预约卡片 -->
+            <div class="col-lg-6">
+                <div class="card h-100 shadow-sm border-0 cancel-card" data-aos="fade-left">
+                    <div class="card-header bg-gradient-cancel text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-x-circle me-2"></i>取消预约
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="text-center mb-4">
+                            <div class="cancel-icon-wrapper">
+                                <i class="bi bi-calendar-x cancel-icon"></i>
+                            </div>
+                            <p class="text-muted">需要取消预约？请输入预约时使用的手机号</p>
+                        </div>
+
+                        <form id="cancel-form" novalidate>
+                            <div class="mb-4">
+                                <label for="cancel-phone" class="form-label fw-semibold">
+                                    <i class="bi bi-telephone-x me-1 text-danger"></i>预约手机号
+                                </label>
+                                <input type="tel" class="form-control form-control-lg" id="cancel-phone"
+                                       placeholder="请输入已预约的手机号" required>
+                                <div class="form-text">取消后将释放号源给其他患者</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-outline-danger btn-lg w-100">
+                                <i class="bi bi-x-circle me-2"></i>取消预约
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-      crossorigin="anonymous"
-    ></script>
+        <!-- 号源查询区域 -->
+        <div class="row" id="availability">
+            <div class="col-12">
+                <div class="card shadow-sm border-0 availability-card" data-aos="fade-up">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clipboard-data me-2"></i>实时号源查询
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">
+                                            <i class="bi bi-hospital me-1"></i>科室
+                                        </th>
+                                        <th scope="col">
+                                            <i class="bi bi-calendar-date me-1"></i>日期
+                                        </th>
+                                        <th scope="col">
+                                            <i class="bi bi-check-circle me-1"></i>可用号源
+                                        </th>
+                                        <th scope="col">
+                                            <i class="bi bi-people me-1"></i>已预约
+                                        </th>
+                                        <th scope="col">
+                                            <i class="bi bi-graph-up me-1"></i>预约进度
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="availability-body">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <div class="spinner-border text-primary me-2" role="status"></div>
+                                            正在加载号源信息...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="row mt-4">
+            <div class="col-md-4 mb-3">
+                <div class="stat-card text-center p-4 rounded-3" data-aos="zoom-in" data-aos-delay="100">
+                    <i class="bi bi-hospital stat-icon text-primary"></i>
+                    <h3 class="mt-2 mb-1" id="total-departments">2</h3>
+                    <p class="text-muted mb-0">开放科室</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-card text-center p-4 rounded-3" data-aos="zoom-in" data-aos-delay="200">
+                    <i class="bi bi-calendar-check stat-icon text-success"></i>
+                    <h3 class="mt-2 mb-1" id="total-availability">40</h3>
+                    <p class="text-muted mb-0">总号源数</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-card text-center p-4 rounded-3" data-aos="zoom-in" data-aos-delay="300">
+                    <i class="bi bi-clock-history stat-icon text-info"></i>
+                    <h3 class="mt-2 mb-1" id="update-time">--:--</h3>
+                    <p class="text-muted mb-0">最后更新</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container text-center">
+            <p class="mb-0">
+                <i class="bi bi-heart-fill text-danger me-1"></i>
+                智慧医疗预约系统 © 2024 | 专业医疗服务平台
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="./app.js"></script>
-  </body>
+</body>
 </html>
